@@ -3,6 +3,8 @@ package com.example.demo.controllers;
 import java.util.Optional;
 
 import org.codehaus.plexus.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,8 @@ public class UserController {
 	@Autowired
 	private BCryptPasswordEncoder bCryptPasswordEncoder;
 
+	public static final Logger log = LoggerFactory.getLogger(UserController.class);
+
 	@GetMapping("/id/{id}")
 	public ResponseEntity<User> findById(@PathVariable Long id) {
 		return ResponseEntity.of(userRepository.findById(id));
@@ -41,6 +45,9 @@ public class UserController {
 	@GetMapping("/{username}")
 	public ResponseEntity<User> findByUserName(@PathVariable String username) {
 		User user = userRepository.findByUsername(username);
+		if(user==null){
+			log.error("Could not find user with username: {}", username);
+		}
 		return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
 	}
 	
@@ -51,12 +58,14 @@ public class UserController {
 		if(createUserRequest.getPassword().length()<7 ||
 				!StringUtils.isAlphanumeric(createUserRequest.getPassword())||
 				!createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword())){
+			log.error("Password rejected because it does not meet password policy requirements");
 			return ResponseEntity.badRequest().build();
 		}
 		user.setPassword(bCryptPasswordEncoder.encode(createUserRequest.getPassword()));
 		Cart cart = new Cart();
 		cartRepository.save(cart);
 		user.setCart(cart);
+		log.info("Creating user with username: {}",createUserRequest.getUsername());
 		userRepository.save(user);
 		return ResponseEntity.ok(user);
 	}
